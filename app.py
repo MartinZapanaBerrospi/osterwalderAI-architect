@@ -7,6 +7,11 @@ Backend principal: FastAPI + LangChain RAG + GPT4All + ChromaDB
 
 import os
 import sys
+
+log_file = open("D:\\osterwalderAI-architect\\dist\\OsterwalderAI\\debug.txt", "w")
+sys.stdout = log_file
+sys.stderr = log_file
+
 import threading
 import uvicorn
 import re
@@ -23,6 +28,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+# Imports pesados movidos al inicio
+from langchain_chroma import Chroma
+from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.llms import GPT4All
+from langchain_community.embeddings import GPT4AllEmbeddings
+from gpt4all import GPT4All as NativeGPT4All
+from gpt4all import Embed4All
+
 # ══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN DE RUTAS
 # ══════════════════════════════════════════════════════════════
@@ -38,8 +52,15 @@ BASE_PATH = get_base_path()
 MODELS_DIR = os.path.join(BASE_PATH, "models")
 KNOWLEDGE_DIR = os.path.join(BASE_PATH, "knowledge_base")
 UPLOADS_DIR = os.path.join(BASE_PATH, "uploads")
-CHROMA_DIR = os.path.join(os.getcwd(), "chroma_db")
+CHROMA_DIR = os.path.join(BASE_PATH, "chroma_db")
 EXPORTS_DIR = os.path.join(BASE_PATH, "exports")
+
+# ══════════════════════════════════════════════════════════════
+# DESACTIVAR TELEMETRÍA PARA EVITAR CONGELAMIENTOS EN PYINSTALLER
+# ══════════════════════════════════════════════════════════════
+os.environ["CHROMA_TELEMETRY_IMPL"] = "None"
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 def get_sys_meipass():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
@@ -77,9 +98,12 @@ embeddings = None
 # ══════════════════════════════════════════════════════════════
 
 def log(msg):
-    """Log con timestamp (compatible con cp1252 de Windows)."""
-    safe_msg = str(msg).encode('ascii', 'replace').decode('ascii')
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {safe_msg}", flush=True)
+    """Log con timestamp (compatible con cp1252 de Windows y noconsole)."""
+    try:
+        safe_msg = str(msg).encode('ascii', 'replace').decode('ascii')
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {safe_msg}", flush=True)
+    except OSError:
+        pass
 
 def update_status(state: str, message: str, progress: int = 0):
     """Actualiza el estado del sistema."""
@@ -231,18 +255,15 @@ CHAT_PROMPT = (
 # ══════════════════════════════════════════════════════════════
 
 def initialize_rag():
-    """Inicializa el pipeline RAG completo: descarga de modelos, embeddings, ChromaDB y LLM."""
-    global rag_chain, vectorstore, llm_instance, retriever, embeddings
-
+    global vectorstore, retriever, llm_instance
     try:
-        # ─── Paso 1: Descargar modelos si no existen ───
+        if system_status["state"] == "ready":
+            return
+            
         update_status("downloading_models", "Verificando modelos de IA...", 5)
-
-        from gpt4all import GPT4All as NativeGPT4All
 
         llm_path = os.path.join(MODELS_DIR, LLM_MODEL_NAME)
         embed_path = os.path.join(MODELS_DIR, EMBED_MODEL_NAME)
-
         if not os.path.exists(llm_path):
             update_status("downloading_models", f"Descargando {LLM_MODEL_NAME}...", 10)
             NativeGPT4All.download_model(LLM_MODEL_NAME, model_path=MODELS_DIR)
@@ -258,7 +279,6 @@ def initialize_rag():
         # ─── Paso 2: Cargar Embeddings ───
         update_status("loading_embeddings", "Cargando modelo de embeddings...", 35)
 
-        from langchain_community.embeddings import GPT4AllEmbeddings
         embeddings = GPT4AllEmbeddings(
             model_name=EMBED_MODEL_NAME,
             gpt4all_kwargs={'allow_download': False, 'model_path': MODELS_DIR}
@@ -267,10 +287,6 @@ def initialize_rag():
 
         # ─── Paso 3: Indexar Knowledge Base ───
         update_status("indexing_knowledge", "Indexando base de conocimiento...", 45)
-
-        from langchain_chroma import Chroma
-        from langchain_community.document_loaders import PyPDFDirectoryLoader
-        from langchain_text_splitters import RecursiveCharacterTextSplitter
 
         # Verificar si ya existe una base de datos indexada
         chroma_has_data = os.path.exists(CHROMA_DIR) and any(
@@ -325,7 +341,6 @@ def initialize_rag():
         # ─── Paso 4: Cargar Modelo de Lenguaje (LLM) ───
         update_status("loading_llm", "Cargando modelo de lenguaje...", 75)
 
-        from langchain_community.llms import GPT4All
         llm_instance = GPT4All(
             model=os.path.join(MODELS_DIR, LLM_MODEL_NAME),
             max_tokens=256,
