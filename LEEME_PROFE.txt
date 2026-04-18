@@ -1,0 +1,18 @@
+OSTERWALDER AI - ARCHITECT
+=======================================
+Curso: Sistemas Analiticos (UNI)
+=======================================
+
+INSTRUCCIONES DE USO PARA EL DOCENTE:
+
+1. Haga doble clic en el archivo "OsterwalderAI.exe".
+2. Espere unos 5 a 10 segundos mientras el motor de Inteligencia Artificial arranca (es un modelo offline pesado que requiere cargar en memoria).
+3. Se abrirá automáticamente una ventana de escritorio con el sistema funcional.
+
+NOTAS IMPORTANTES:
+- El sistema funciona 100% OFF-LINE y local, manteniendo total privacidad.
+- La "knowledge_base" original ya está indexada (Formato Canvas, Generación de Modelos de Negocio, Diseñando Propuesta de Valor).
+- Puede subir NUEVAS TESIS en PDF mediante la opción "Analizar Documento" en la web. El sistema las leerá, extraerá el contexto del negocio específico y le generará el modelo seleccionado.
+- ¡Al no depender de internet, requiere paciencia en la generación, ya que su propia PC procesa toda la IA de Llama 3!
+
+No elimine las carpetas adjuntas en este directorio (models, knowledge_base, static), el ejecutable las necesita para funcionar.

@@ -25,11 +25,12 @@ pypdf>=4.0.0
 # --- Modelos Locales (.gguf) ---
 gpt4all>=2.7.0
 
-# --- Generación de Reportes PDF ---
+# --- Generación de Reportes PDF y Documentos ---
 fpdf2>=2.7.0
+python-docx>=1.0.0
 
-# --- Desktop Wrapper ---
-pywebview>=5.0
+# --- Desktop Wrapper (Empaquetador) ---
+pyinstaller>=6.0.0
 
 # --- Utilidades ---
 numpy>=1.26.0

@@ -30,7 +30,8 @@ from pydantic import BaseModel
 def get_base_path():
     """Obtiene la ruta base (compatible con PyInstaller)."""
     if getattr(sys, 'frozen', False):
-        return sys._MEIPASS
+        # Usa la carpeta del .exe para no tener que empaquetar los modelos de 1GB dentro
+        return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
 BASE_PATH = get_base_path()
@@ -39,7 +40,12 @@ KNOWLEDGE_DIR = os.path.join(BASE_PATH, "knowledge_base")
 UPLOADS_DIR = os.path.join(BASE_PATH, "uploads")
 CHROMA_DIR = os.path.join(os.getcwd(), "chroma_db")
 EXPORTS_DIR = os.path.join(BASE_PATH, "exports")
-STATIC_DIR = os.path.join(BASE_PATH, "static")
+def get_sys_meipass():
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+STATIC_DIR = os.path.join(get_sys_meipass(), "static")
 
 # Crear directorios necesarios
 for _dir in [MODELS_DIR, KNOWLEDGE_DIR, UPLOADS_DIR, CHROMA_DIR, EXPORTS_DIR]:
@@ -61,6 +67,7 @@ system_status = {
 
 rag_chain = None
 vectorstore = None
+thesis_vectorstore = None
 llm_instance = None
 retriever = None
 embeddings = None
@@ -84,6 +91,14 @@ def update_status(state: str, message: str, progress: int = 0):
 # PROMPTS ESPECIALIZADOS PARA MODELOS DE NEGOCIO
 # ══════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════
+# PROMPTS OPTIMIZADOS PARA MODELOS PEQUEÑOS (1B-3B params)
+# - Instrucciones en inglés (mejor instruction-following)
+# - Pre-seed de respuesta (guía la generación)
+# - Few-shot example (formato esperado)
+# - Contexto reducido a 800 chars
+# ═══════════════════════════════════════════════════════════
+
 MODEL_PROMPTS = {
     "bmc": {
         "title": "Business Model Canvas",
@@ -95,123 +110,117 @@ MODEL_PROMPTS = {
         ],
         "prompt_template": (
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-            "Eres un consultor de negocios experto en Business Model Canvas de Osterwalder. "
-            "Analiza negocios y genera los 9 bloques del Canvas."
+            "You are a business analyst. Read the document and fill each block with 2-3 bullet points in Spanish."
             "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-            "Analiza este negocio y genera el Business Model Canvas.\n"
-            "Responde SOLO con estos 9 bloques. Para cada bloque escribe 2-3 puntos cortos:\n\n"
+            "Fill every block below based on this business:\n\n{context}\n\n"
+            "Fill ALL 9 blocks:\n"
             "[SEGMENTOS_CLIENTES]\n[PROPUESTA_VALOR]\n[CANALES]\n"
             "[RELACIONES_CLIENTES]\n[FUENTES_INGRESOS]\n[RECURSOS_CLAVE]\n"
-            "[ACTIVIDADES_CLAVE]\n[ASOCIACIONES_CLAVE]\n[ESTRUCTURA_COSTOS]\n\n"
-            "Documento:\n{context}"
+            "[ACTIVIDADES_CLAVE]\n[ASOCIACIONES_CLAVE]\n[ESTRUCTURA_COSTOS]"
             "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        )
+            "[SEGMENTOS_CLIENTES]\n"
+        ),
+        "preseed": "[SEGMENTOS_CLIENTES]\n"
     },
     "empathy": {
-        "title": "Mapa de Empatía",
+        "title": "Mapa de Empatia",
         "query": "cliente usuario emociones problemas necesidades frustraciones motivaciones entorno",
         "blocks": [
             "PIENSA_SIENTE", "VE", "OYE", "DICE_HACE", "ESFUERZOS", "RESULTADOS"
         ],
         "prompt_template": (
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-            "Eres un consultor de negocios experto en Mapas de Empatía. "
-            "Analiza negocios para comprender profundamente al cliente."
+            "You are a business analyst. Create an Empathy Map with 6 blocks. Write 2-3 bullets per block in Spanish."
             "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-            "Genera un Mapa de Empatía del cliente principal de este negocio.\n"
-            "Responde SOLO con estos 6 bloques. Para cada bloque escribe 2-3 puntos:\n\n"
-            "[PIENSA_SIENTE]\n[VE]\n[OYE]\n[DICE_HACE]\n[ESFUERZOS]\n[RESULTADOS]\n\n"
-            "Documento:\n{context}"
+            "Create an Empathy Map for the main customer of this business:\n\n{context}\n\n"
+            "Fill ALL 6 blocks:\n"
+            "[PIENSA_SIENTE]\n[VE]\n[OYE]\n[DICE_HACE]\n[ESFUERZOS]\n[RESULTADOS]"
             "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        )
+            "[PIENSA_SIENTE]\n"
+        ),
+        "preseed": "[PIENSA_SIENTE]\n"
     },
     "persona": {
         "title": "Mapa de Persona / Cliente",
-        "query": "perfil cliente ideal demografía edad comportamiento hábitos necesidades objetivos",
+        "query": "perfil cliente ideal demografia edad comportamiento habitos necesidades objetivos",
         "blocks": [
             "NOMBRE_PERFIL", "DEMOGRAFIA", "COMPORTAMIENTO",
             "NECESIDADES", "FRUSTRACIONES", "MOTIVACIONES"
         ],
         "prompt_template": (
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-            "Eres un consultor de negocios experto en Buyer Personas. "
-            "Creas perfiles detallados de clientes ideales."
+            "You are a business analyst. Create a Buyer Persona profile with 6 blocks. Write 2-3 bullets per block in Spanish."
             "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-            "Genera un Mapa de Persona/Cliente ideal para este negocio.\n"
-            "Responde SOLO con estos 6 bloques. Para cada bloque escribe 2-3 puntos:\n\n"
+            "Create a Buyer Persona for the ideal customer of this business:\n\n{context}\n\n"
+            "Fill ALL 6 blocks:\n"
             "[NOMBRE_PERFIL]\n[DEMOGRAFIA]\n[COMPORTAMIENTO]\n"
-            "[NECESIDADES]\n[FRUSTRACIONES]\n[MOTIVACIONES]\n\n"
-            "Documento:\n{context}"
+            "[NECESIDADES]\n[FRUSTRACIONES]\n[MOTIVACIONES]"
             "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        )
+            "[NOMBRE_PERFIL]\n"
+        ),
+        "preseed": "[NOMBRE_PERFIL]\n"
     },
     "value": {
         "title": "Lienzo de Propuesta de Valor",
-        "query": "propuesta de valor productos servicios beneficio dolor ganancia problema solución",
+        "query": "propuesta de valor productos servicios beneficio dolor ganancia problema solucion",
         "blocks": [
             "TRABAJOS_CLIENTE", "DOLORES", "GANANCIAS",
             "PRODUCTOS_SERVICIOS", "ALIVIADORES_DOLOR", "CREADORES_GANANCIA"
         ],
         "prompt_template": (
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-            "Eres un consultor de negocios experto en el Value Proposition Canvas de Osterwalder. "
-            "Diseñas propuestas de valor que se alinean con las necesidades del cliente."
+            "You are a business analyst. Create a Value Proposition Canvas with 6 blocks. Write 2-3 bullets per block in Spanish."
             "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-            "Genera un Lienzo de Propuesta de Valor para este negocio.\n"
-            "Responde SOLO con estos 6 bloques. Para cada bloque escribe 2-3 puntos:\n\n"
+            "Create a Value Proposition Canvas for this business:\n\n{context}\n\n"
+            "Fill ALL 6 blocks:\n"
             "[TRABAJOS_CLIENTE]\n[DOLORES]\n[GANANCIAS]\n"
-            "[PRODUCTOS_SERVICIOS]\n[ALIVIADORES_DOLOR]\n[CREADORES_GANANCIA]\n\n"
-            "Documento:\n{context}"
+            "[PRODUCTOS_SERVICIOS]\n[ALIVIADORES_DOLOR]\n[CREADORES_GANANCIA]"
             "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        )
+            "[TRABAJOS_CLIENTE]\n"
+        ),
+        "preseed": "[TRABAJOS_CLIENTE]\n"
     },
     "journey": {
         "title": "Customer Journey Map",
-        "query": "experiencia cliente viaje antes durante después compra descubrimiento uso retención recomendación",
+        "query": "experiencia cliente viaje antes durante despues compra descubrimiento uso retencion recomendacion",
         "blocks": [
             "DESCUBRIMIENTO", "CONSIDERACION", "DECISION",
             "COMPRA", "USO", "SOPORTE", "RETENCION", "RECOMENDACION"
         ],
         "prompt_template": (
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-            "Eres un consultor de negocios experto en Customer Journey Maps. "
-            "Mapeas la experiencia completa del cliente en 3 fases: Antes, Durante y Después."
+            "You are a business analyst. Create a Customer Journey Map with 8 stages. Write 2-3 bullets per stage in Spanish."
             "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-            "Genera un Customer Journey Map para este negocio.\n"
-            "Responde SOLO con estos 8 bloques (Antes/Durante/Después). "
-            "Para cada bloque escribe 2-3 puntos:\n\n"
-            "ANTES:\n[DESCUBRIMIENTO]\n[CONSIDERACION]\n[DECISION]\n"
-            "DURANTE:\n[COMPRA]\n[USO]\n"
-            "DESPUÉS:\n[SOPORTE]\n[RETENCION]\n[RECOMENDACION]\n\n"
-            "Documento:\n{context}"
+            "Create a Customer Journey Map for this business:\n\n{context}\n\n"
+            "Fill ALL 8 stages:\n"
+            "BEFORE: [DESCUBRIMIENTO] [CONSIDERACION] [DECISION]\n"
+            "DURING: [COMPRA] [USO]\n"
+            "AFTER: [SOPORTE] [RETENCION] [RECOMENDACION]"
             "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
-        )
+            "[DESCUBRIMIENTO]\n"
+        ),
+        "preseed": "[DESCUBRIMIENTO]\n"
     }
 }
 
 COMPARE_PROMPT = (
     "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-    "Eres un evaluador de negocios experto. Emites juicios de factibilidad "
-    "técnica y comercial comparando dos propuestas."
+    "You are a business evaluator. Compare two proposals and assess feasibility. Write in Spanish."
     "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
-    "Compara estas dos propuestas de modelo de negocio y emite un juicio de factibilidad.\n\n"
-    "PROPUESTA ORIGINAL (de la tesis):\n{original}\n\n"
-    "PROPUESTA IA (generada por inteligencia artificial):\n{ai_proposal}\n\n"
-    "Responde con:\n"
-    "[COINCIDENCIAS] puntos donde ambas coinciden\n"
-    "[DIFERENCIAS] puntos donde difieren\n"
-    "[FACTIBILIDAD_TECNICA] evaluación técnica (Alta/Media/Baja + justificación)\n"
-    "[FACTIBILIDAD_COMERCIAL] evaluación comercial (Alta/Media/Baja + justificación)\n"
-    "[RECOMENDACIONES] mejoras sugeridas\n"
+    "Compare these two business proposals:\n\n"
+    "ORIGINAL PROPOSAL:\n{original}\n\n"
+    "AI PROPOSAL:\n{ai_proposal}\n\n"
+    "Fill these blocks:\n"
+    "[COINCIDENCIAS] [DIFERENCIAS] [FACTIBILIDAD_TECNICA] [FACTIBILIDAD_COMERCIAL] [RECOMENDACIONES]"
     "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    "[COINCIDENCIAS]\n"
 )
 
 CHAT_PROMPT = (
     "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-    "Eres OsterwalderAI, un Consultor de Negocios de IA especializado en "
-    "modelos de Osterwalder. Respondes en español de forma concisa y profesional.\n"
-    "Usa tu conocimiento general y el siguiente contexto como apoyo.\n\n"
-    "Contexto:\n{context}"
+    "You are OsterwalderAI, an AI Business Consultant specializing in Osterwalder business models. "
+    "Always respond in Spanish. Be concise and professional.\n\n"
+    "Context:\n{context}"
     "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
     "{input}"
     "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
@@ -277,28 +286,14 @@ def initialize_rag():
             )
             update_status("indexing_knowledge", "Base de conocimiento cargada OK", 65)
         else:
-            # Buscar PDFs en knowledge_base/ y también en la raíz del proyecto
+            # Buscar PDFs SOLAMENTE en knowledge_base/ (Metodología Osterwalder)
             all_docs = []
 
             # Indexar knowledge_base/
             if os.listdir(KNOWLEDGE_DIR):
-                log(f"[RAG] Indexando PDFs de knowledge_base/...")
+                log(f"[RAG] Indexando PDFs de knowledge_base/ (Metodología)...")
                 kb_loader = PyPDFDirectoryLoader(KNOWLEDGE_DIR)
                 all_docs.extend(kb_loader.load())
-
-            # Indexar PDFs de la raíz del proyecto (libros de Osterwalder)
-            root_pdfs = [f for f in os.listdir(BASE_PATH) if f.endswith('.pdf')]
-            if root_pdfs:
-                log(f"[RAG] Indexando {len(root_pdfs)} PDFs de la raíz del proyecto...")
-                from langchain_community.document_loaders import PyPDFLoader
-                for pdf_name in root_pdfs:
-                    try:
-                        pdf_path = os.path.join(BASE_PATH, pdf_name)
-                        loader = PyPDFLoader(pdf_path)
-                        all_docs.extend(loader.load())
-                        log(f"  > {pdf_name} procesado.")
-                    except Exception as e:
-                        log(f"  X Error procesando {pdf_name}: {e}")
 
             if all_docs:
                 log(f"[RAG] Fragmentando {len(all_docs)} páginas...")
@@ -333,11 +328,11 @@ def initialize_rag():
         from langchain_community.llms import GPT4All
         llm_instance = GPT4All(
             model=os.path.join(MODELS_DIR, LLM_MODEL_NAME),
-            max_tokens=2048,
-            n_predict=2048,
-            temp=0.4,
-            repeat_penalty=1.18,
-            stop=["<|eot_id|>", "<|reserved_special_token"]
+            max_tokens=256,
+            n_predict=256,
+            temp=0.3,
+            repeat_penalty=1.3,
+            stop=["<|eot_id|>", "<|reserved_special_token", "\n\n\n", "[END]"]
         )
         log("[RAG] Modelo de lenguaje cargado correctamente.")
 
@@ -355,14 +350,29 @@ def initialize_rag():
 # ══════════════════════════════════════════════════════════════
 
 def retrieve_context(query: str, k: int = 4) -> str:
-    """Recupera contexto relevante de la base vectorial."""
-    if retriever is None:
+    """Recupera contexto relevante, priorizando la tesis subida."""
+    docs = []
+    
+    # 1. Priorizar búsqueda en la tesis actual (si el usuario subió una)
+    if thesis_vectorstore is not None:
+        try:
+            thesis_docs = thesis_vectorstore.similarity_search(query, k=k)
+            docs.extend(thesis_docs)
+        except Exception as e:
+            log(f"[RAG] Error buscando en tesis: {e}")
+            
+    # 2. Rellenar con información metodológica (libros) si es necesario
+    if vectorstore is not None and len(docs) < k:
+        try:
+            kb_docs = vectorstore.similarity_search(query, k=(k - len(docs)))
+            docs.extend(kb_docs)
+        except Exception:
+            pass
+
+    if not docs:
         return ""
-    try:
-        docs = retriever.invoke(query)
-        return "\n\n".join([doc.page_content for doc in docs[:k]])
-    except Exception:
-        return ""
+    
+    return "\n\n".join([doc.page_content for doc in docs])
 
 def invoke_llm(prompt: str) -> str:
     """Invoca el LLM con un prompt y limpia la respuesta."""
@@ -393,10 +403,94 @@ def parse_blocks(response_text: str, expected_blocks: list) -> Dict[str, List[st
                 line = re.sub(r'^\d+\.\s*', '', line)
                 if line and len(line) > 2:
                     items.append(line)
-            blocks[block_name] = items if items else ["(Información no disponible)"]
+            blocks[block_name] = items if items else ["(Informacion no disponible)"]
         else:
-            blocks[block_name] = ["(Información no disponible)"]
+            blocks[block_name] = ["(Informacion no disponible)"]
     return blocks
+
+# Nombres display para cada bloque (español)
+BLOCK_DISPLAY_NAMES = {
+    "SEGMENTOS_CLIENTES": "Segmentos de Clientes",
+    "PROPUESTA_VALOR": "Propuesta de Valor",
+    "CANALES": "Canales de Distribucion",
+    "RELACIONES_CLIENTES": "Relaciones con Clientes",
+    "FUENTES_INGRESOS": "Fuentes de Ingresos",
+    "RECURSOS_CLAVE": "Recursos Clave",
+    "ACTIVIDADES_CLAVE": "Actividades Clave",
+    "ASOCIACIONES_CLAVE": "Asociaciones Clave",
+    "ESTRUCTURA_COSTOS": "Estructura de Costos",
+    "PIENSA_SIENTE": "Que Piensa y Siente el cliente",
+    "VE": "Que Ve el cliente en su entorno",
+    "OYE": "Que Oye el cliente",
+    "DICE_HACE": "Que Dice y Hace el cliente",
+    "ESFUERZOS": "Esfuerzos y Dolores del cliente",
+    "RESULTADOS": "Resultados y Ganancias del cliente",
+    "NOMBRE_PERFIL": "Nombre y Perfil del cliente ideal",
+    "DEMOGRAFIA": "Demografia del cliente",
+    "COMPORTAMIENTO": "Comportamiento del cliente",
+    "NECESIDADES": "Necesidades del cliente",
+    "FRUSTRACIONES": "Frustraciones del cliente",
+    "MOTIVACIONES": "Motivaciones del cliente",
+    "TRABAJOS_CLIENTE": "Trabajos del Cliente",
+    "DOLORES": "Dolores del Cliente",
+    "GANANCIAS": "Ganancias esperadas del Cliente",
+    "PRODUCTOS_SERVICIOS": "Productos y Servicios ofrecidos",
+    "ALIVIADORES_DOLOR": "Aliviadores de Dolor",
+    "CREADORES_GANANCIA": "Creadores de Ganancia",
+    "DESCUBRIMIENTO": "Descubrimiento (como conoce el negocio)",
+    "CONSIDERACION": "Consideracion (que evalua antes de comprar)",
+    "DECISION": "Decision (por que elige este negocio)",
+    "COMPRA": "Compra (experiencia de compra)",
+    "USO": "Uso (experiencia usando el producto/servicio)",
+    "SOPORTE": "Soporte post-venta",
+    "RETENCION": "Retencion (como mantener al cliente)",
+    "RECOMENDACION": "Recomendacion (como genera boca a boca)",
+}
+
+# Nombres del modelo de negocio para contexto del prompt
+MODEL_CONTEXT_NAMES = {
+    "bmc": "Business Model Canvas (Alexander Osterwalder)",
+    "empathy": "Empathy Map (Mapa de Empatia)",
+    "persona": "Buyer Persona (Perfil del Cliente Ideal)",
+    "value": "Value Proposition Canvas (Lienzo de Propuesta de Valor)",
+    "journey": "Customer Journey Map (Mapa de Viaje del Cliente)",
+}
+
+def generate_single_block(block_name: str, model_type: str, context: str) -> list:
+    """Genera un solo bloque usando un prompt ultra-simple para modelos de 1B."""
+    display_name = BLOCK_DISPLAY_NAMES.get(block_name, block_name)
+    model_name = MODEL_CONTEXT_NAMES.get(model_type, "Business Model")
+
+    prompt = (
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+        "You are a business consultant. Write exactly 3 short bullet points in Spanish."
+        "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
+        f"Business: {context}\n\n"
+        f"For a {model_name}, write 3 bullet points for: {display_name}"
+        "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        "1. "
+    )
+
+    raw = invoke_llm(prompt)
+    # Prepend "1. " since we pre-seeded it
+    raw = "1. " + raw
+
+    # Parsear las lineas
+    items = []
+    for line in raw.split('\n'):
+        line = line.strip()
+        line = re.sub(r'^[-•*]\s*', '', line)
+        line = re.sub(r'^\d+[\.\)]\s*', '', line)
+        # Filtrar basura: 'assistant', headers repetidos, lineas muy cortas
+        if (line and len(line) > 5
+            and 'assistant' not in line.lower()
+            and 'bullet point' not in line.lower()
+            and 'here are' not in line.lower()
+            and block_name.lower() not in line.lower().replace(' ', '_')):
+            items.append(line[:150])
+
+    return items[:4] if items else [f"Informacion para {display_name}"]
+
 
 # ══════════════════════════════════════════════════════════════
 # GENERACIÓN DE PDF CON fpdf2
@@ -533,22 +627,22 @@ def chat_endpoint(req: ChatRequest):
 
 @app.post("/api/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    """Sube un PDF y lo indexa en la base de conocimiento."""
-    global vectorstore
+    """Sube un PDF y lo indexa como la tesis temporal."""
+    global thesis_vectorstore, embeddings
 
-    if vectorstore is None or embeddings is None:
+    if embeddings is None:
         return {"error": "El sistema se está inicializando, espera un momento."}
 
     if not file.filename.lower().endswith(".pdf"):
         return {"error": "Solo se permiten archivos PDF."}
 
     try:
-        # Guardar archivo
+        # Guardar archivo temporal
         file_location = os.path.join(UPLOADS_DIR, file.filename)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Indexar en ChromaDB
+        # Segmentar
         from langchain_community.document_loaders import PyPDFLoader
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -559,11 +653,23 @@ async def upload_pdf(file: UploadFile = File(...)):
             chunk_size=1000, chunk_overlap=200
         )
         fragments = text_splitter.split_documents(new_docs)
-        vectorstore.add_documents(fragments)
+
+        # Crear index dinámico para la tesis actual
+        from langchain_chroma import Chroma
+        import uuid
+        
+        # Usar uuid para forzar recarga en memoria si sube una nueva
+        collection_name = f"thesis_{uuid.uuid4().hex[:8]}"
+        
+        thesis_vectorstore = Chroma.from_documents(
+            documents=fragments,
+            embedding=embeddings,
+            collection_name=collection_name
+        )
 
         log(f"[UPLOAD] PDF '{file.filename}' indexado: {len(fragments)} fragmentos")
         return {
-            "message": f"PDF '{file.filename}' agregado exitosamente.",
+            "message": f"PDF '{file.filename}' agregado exitosamente (Prioridad RAG).",
             "pages": len(new_docs),
             "fragments": len(fragments),
             "filename": file.filename
@@ -584,23 +690,32 @@ def generate_model(req: GenerateModelRequest):
     try:
         config = MODEL_PROMPTS[model_type]
 
-        # Recuperar contexto relevante
-        context = retrieve_context(config["query"], k=4)
+        # Recuperar contexto relevante (reducido para modelos pequeños)
+        context = retrieve_context(config["query"], k=3)
         if not context.strip():
             return {"error": "No hay documentos en la base de conocimiento. Sube un PDF primero."}
 
-        # Generar con el LLM
-        prompt = config["prompt_template"].format(context=context[:2000])
-        raw_response = invoke_llm(prompt)
+        # Estrategia: Generar CADA BLOQUE por separado (mejor para modelos 1B)
+        short_context = context[:600]
+        blocks = {}
+        raw_parts = []
 
-        # Parsear bloques
-        blocks = parse_blocks(raw_response, config["blocks"])
+        log(f"[MODEL] Generando {model_type} ({len(config['blocks'])} bloques) bloque por bloque...")
+
+        for i, block_name in enumerate(config["blocks"]):
+            log(f"[MODEL]   Bloque {i+1}/{len(config['blocks'])}: {block_name}")
+            items = generate_single_block(block_name, model_type, short_context)
+            blocks[block_name] = items
+            raw_parts.append(f"[{block_name}]\n" + "\n".join(f"- {item}" for item in items))
+
+        full_response = "\n\n".join(raw_parts)
+        log(f"[MODEL] {model_type} completado: {len(blocks)} bloques generados")
 
         return {
             "model_type": model_type,
             "title": config["title"],
             "blocks": blocks,
-            "raw_response": raw_response
+            "raw_response": full_response
         }
     except Exception as e:
         return {"error": f"Error generando {model_type}: {str(e)}"}
@@ -674,14 +789,39 @@ if __name__ == '__main__':
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
 
-    # Lanzar ventana nativa con pywebview
-    import webview
-    window = webview.create_window(
-        'OsterwalderAI Architect',
-        'http://127.0.0.1:8000',
-        width=1280,
-        height=860,
-        min_size=(900, 600),
-        text_select=True
-    )
-    webview.start()
+    import time
+    
+    # Lanzar la ventana nativa
+    log("Iniciando interfaz de usuario...")
+    # Darle un par de segundos al servidor para arrancar
+    time.sleep(2)
+    
+    # Intentar lanzar Edge en modo aplicación (nativo en Windows, sin bordes de navegador)
+    url = "http://127.0.0.1:8000"
+    success = False
+    
+    if os.name == 'nt':
+        try:
+            # Lanza Edge como aplicación de escritorio nativa
+            subprocess.Popen([
+                "start", "msedge", f"--app={url}", 
+                "--window-size=1280,860"
+            ], shell=True)
+            success = True
+            log("Interfaz lanzada en Desktop Mode (Edge App).")
+        except Exception as e:
+            pass
+            
+    if not success:
+        # Fallback a webbrowser por defecto
+        import webbrowser
+        webbrowser.open(url)
+        log("Interfaz lanzada en Navegador por defecto.")
+
+    # Mantener el hilo principal vivo para que no se cierre el servidor
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log("Cerrando sistema...")
+        sys.exit(0)
