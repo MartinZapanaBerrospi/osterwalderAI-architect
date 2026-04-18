@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OsterwalderAI Architect — Consultor de Negocios Inteligente</title>
+    <meta name="description" content="Consultor de Negocios Inteligente impulsado por IA. Genera Business Model Canvas, Mapa de Empatía, Propuesta de Valor y más. 100% Offline.">
+
+    <!-- Tipografía: Inter (Google Fonts) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- ═══════════════ SIDEBAR ═══════════════ -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">🧠</div>
+            <div class="logo-text">
+                <h1>OsterwalderAI</h1>
+                <span>Business Architect</span>
+            </div>
+        </div>
+
+        <!-- Indicador de Estado del Sistema -->
+        <div class="system-status" id="systemStatus">
+            <div class="status-dot starting" id="statusDot"></div>
+            <div style="flex:1; overflow:hidden;">
+                <div class="status-text" id="statusText">Iniciando sistema...</div>
+                <div class="status-progress">
+                    <div class="status-progress-bar" id="statusProgress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navegación -->
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-view="home" id="nav-home">
+                <span class="nav-icon">🏠</span>
+                <span>Inicio</span>
+            </button>
+            <button class="nav-item" data-view="chat" id="nav-chat">
+                <span class="nav-icon">💬</span>
+                <span>Consultar IA</span>
+            </button>
+            <button class="nav-item" data-view="analyze" id="nav-analyze">
+                <span class="nav-icon">🔬</span>
+                <span>Analizar Documento</span>
+            </button>
+            <button class="nav-item" data-view="compare" id="nav-compare">
+                <span class="nav-icon">⚖️</span>
+                <span>Comparativa</span>
+            </button>
+            <button class="nav-item" data-view="export" id="nav-export">
+                <span class="nav-icon">📄</span>
+                <span>Exportar PDF</span>
+            </button>
+        </nav>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <p>Sistemas Analíticos<br>UNI — 2026-I</p>
+        </div>
+    </aside>
+
+    <!-- ═══════════════ CONTENIDO PRINCIPAL ═══════════════ -->
+    <main class="main-content">
+
+        <!-- Header Superior -->
+        <header class="top-bar">
+            <div class="top-bar-title">
+                <h2 id="viewTitle">Inicio</h2>
+                <span id="viewSubtitle">Panel principal del sistema</span>
+            </div>
+            <div class="top-bar-actions">
+                <span class="badge badge-info" id="badgeStatus">⏳ Inicializando</span>
+            </div>
+        </header>
+
+        <!-- ═══════════ VISTA: INICIO ═══════════ -->
+        <section id="view-home" class="view active">
+            <div class="home-hero animate-fade-in">
+                <h2>OsterwalderAI Architect</h2>
+                <p>Tu consultor de negocios inteligente impulsado por IA. Genera análisis completos de modelos de negocio basados en la metodología de Alexander Osterwalder, 100% offline.</p>
+            </div>
+
+            <div class="home-cards">
+                <div class="glass-card home-card animate-fade-in delay-1" data-goto="chat">
+                    <span class="home-card-icon">💬</span>
+                    <h3>Consultar IA</h3>
+                    <p>Chatea libremente con la IA sobre modelos de negocio y estrategia.</p>
+                </div>
+                <div class="glass-card home-card animate-fade-in delay-2" data-goto="analyze">
+                    <span class="home-card-icon">🔬</span>
+                    <h3>Analizar Documento</h3>
+                    <p>Sube una tesis o documento de negocio y genera los 5 modelos automáticamente.</p>
+                </div>
+                <div class="glass-card home-card animate-fade-in delay-3" data-goto="compare">
+                    <span class="home-card-icon">⚖️</span>
+                    <h3>Comparativa</h3>
+                    <p>Compara la propuesta de la IA contra la propuesta original de la tesis.</p>
+                </div>
+                <div class="glass-card home-card animate-fade-in delay-4" data-goto="export">
+                    <span class="home-card-icon">📄</span>
+                    <h3>Exportar a PDF</h3>
+                    <p>Genera un reporte profesional con todos los modelos generados.</p>
+                </div>
+            </div>
+
+            <div class="glass-card-static mt-lg animate-fade-in delay-5" style="text-align:center;">
+                <h3 style="font-size:14px; margin-bottom:8px;">📚 Modelos que Genera el Sistema</h3>
+                <p class="text-sm text-muted">Business Model Canvas (9 bloques) · Mapa de Empatía · Mapa de Persona/Cliente · Lienzo de Propuesta de Valor · Customer Journey Map</p>
+            </div>
+        </section>
+
+        <!-- ═══════════ VISTA: CHAT ═══════════ -->
+        <section id="view-chat" class="view">
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message assistant">
+                        <div class="chat-avatar">🧠</div>
+                        <div class="chat-bubble">
+                            ¡Hola! Soy <strong>OsterwalderAI</strong>, tu consultor de negocios inteligente. Puedo ayudarte a analizar modelos de negocio, crear canvas, mapas de empatía y mucho más. ¿En qué puedo ayudarte?
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input
+                        type="text"
+                        class="input-field"
+                        id="chatInput"
+                        placeholder="Escribe tu consulta sobre modelos de negocio..."
+                        autocomplete="off"
+                    >
+                    <button class="btn btn-primary" id="chatSendBtn" onclick="sendChatMessage()">
+                        <span>Enviar</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ VISTA: ANÁLISIS ═══════════ -->
+        <section id="view-analyze" class="view">
+            <h2 class="section-title">Analizar Documento</h2>
+            <p class="section-subtitle">Sube una tesis de maestría o documento de negocio para generar los 5 modelos automáticamente.</p>
+
+            <!-- Zona de Upload -->
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" class="upload-file-input" accept=".pdf">
+                <span class="upload-zone-icon">📤</span>
+                <h3>Arrastra tu PDF aquí</h3>
+                <p>o haz clic para seleccionar un archivo</p>
+            </div>
+
+            <!-- Archivos subidos -->
+            <div class="uploaded-files" id="uploadedFiles"></div>
+
+            <!-- Controles de Análisis -->
+            <div class="analyze-controls">
+                <button class="btn btn-primary btn-lg" id="analyzeAllBtn" onclick="generateAllModels()" disabled>
+                    🚀 Generar los 5 Modelos de Negocio
+                </button>
+                <span class="text-sm text-muted" id="analyzeStatus"></span>
+            </div>
+
+            <!-- Resultados: Grid de Modelos -->
+            <div class="models-grid" id="modelsGrid"></div>
+        </section>
+
+        <!-- ═══════════ VISTA: COMPARATIVA ═══════════ -->
+        <section id="view-compare" class="view">
+            <h2 class="section-title">Análisis Comparativo</h2>
+            <p class="section-subtitle">Compara la propuesta generada por la IA contra la propuesta original de la tesis analizada.</p>
+
+            <div class="glass-card-static">
+                <h3 style="font-size:14px; margin-bottom:12px;">📝 Resumen de la Propuesta Original (Tesis)</h3>
+                <textarea
+                    class="input-field"
+                    id="originalProposal"
+                    rows="5"
+                    placeholder="Pega aquí un resumen de la propuesta original de la tesis que deseas comparar..."
+                ></textarea>
+            </div>
+
+            <div class="mt-md">
+                <button class="btn btn-primary" id="compareBtn" onclick="runComparison()">
+                    ⚖️ Ejecutar Comparación de Factibilidad
+                </button>
+            </div>
+
+            <!-- Resultados de comparación -->
+            <div id="compareResults" class="mt-lg"></div>
+        </section>
+
+        <!-- ═══════════ VISTA: EXPORTAR ═══════════ -->
+        <section id="view-export" class="view">
+            <h2 class="section-title">Exportar a PDF</h2>
+            <p class="section-subtitle">Genera un reporte profesional con todos los modelos y análisis generados.</p>
+
+            <div class="glass-card-static">
+                <label style="font-size:13px; color: var(--text-secondary); margin-bottom:8px; display:block;">Título del Reporte</label>
+                <input
+                    type="text"
+                    class="input-field"
+                    id="exportTitle"
+                    placeholder="Ej: Análisis de Modelo de Negocio - Negocia.Pe"
+                    value="Análisis de Modelo de Negocio"
+                >
+            </div>
+
+            <div class="export-preview mt-md" id="exportPreview">
+                <p class="text-sm text-muted mb-md">No hay modelos generados aún. Ve a "Analizar Documento" para generar los modelos primero.</p>
+            </div>
+
+            <div class="mt-lg">
+                <button class="btn btn-primary btn-lg" id="exportBtn" onclick="exportToPDF()" disabled>
+                    📄 Descargar Reporte PDF
+                </button>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Procesando...</div>
+</div>
+
+<!-- Mermaid.js para diagramas -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+<!-- Lógica del Frontend -->
+<script src="/static/app.js"></script>
+
+</body>
+</html>

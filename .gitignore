@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Models (demasiado grandes para Git)
+models/
+*.gguf
+
+# ChromaDB (base de datos vectorial local)
+chroma_db/
+
+# Archivos subidos por usuarios
+uploads/
+
+# PDFs exportados
+exports/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PyInstaller
+*.spec

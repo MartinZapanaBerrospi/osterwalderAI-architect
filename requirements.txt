@@ -1,0 +1,35 @@
+# ============================================
+# OsterwalderAI Architect - Dependencias
+# Curso: Sistemas Analíticos (UNI) - 2026-I
+# ============================================
+
+# --- Backend ---
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+
+# --- IA / RAG ---
+langchain>=0.2.0
+langchain-community>=0.2.0
+langchain-chroma>=0.1.0
+langchain-text-splitters>=0.2.0
+langchain-core>=0.2.0
+
+# --- Vector Database ---
+chromadb>=0.5.0
+
+# --- Procesamiento de Documentos ---
+pypdf>=4.0.0
+
+# --- Modelos Locales (.gguf) ---
+gpt4all>=2.7.0
+
+# --- Generación de Reportes PDF ---
+fpdf2>=2.7.0
+
+# --- Desktop Wrapper ---
+pywebview>=5.0
+
+# --- Utilidades ---
+numpy>=1.26.0
