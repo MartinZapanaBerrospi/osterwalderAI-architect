@@ -70,8 +70,9 @@ embeddings = None
 # ══════════════════════════════════════════════════════════════
 
 def log(msg):
-    """Log con timestamp."""
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
+    """Log con timestamp (compatible con cp1252 de Windows)."""
+    safe_msg = str(msg).encode('ascii', 'replace').decode('ascii')
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {safe_msg}", flush=True)
 
 def update_status(state: str, message: str, progress: int = 0):
     """Actualiza el estado del sistema."""
@@ -243,7 +244,7 @@ def initialize_rag():
             NativeGPT4All.download_model(EMBED_MODEL_NAME, model_path=MODELS_DIR)
             log(f"[RAG] Modelo Embedding descargado: {EMBED_MODEL_NAME}")
 
-        update_status("downloading_models", "Modelos verificados ✓", 30)
+        update_status("downloading_models", "Modelos verificados OK", 30)
 
         # ─── Paso 2: Cargar Embeddings ───
         update_status("loading_embeddings", "Cargando modelo de embeddings...", 35)
@@ -274,7 +275,7 @@ def initialize_rag():
                 persist_directory=CHROMA_DIR,
                 embedding_function=embeddings
             )
-            update_status("indexing_knowledge", "Base de conocimiento cargada ✓", 65)
+            update_status("indexing_knowledge", "Base de conocimiento cargada OK", 65)
         else:
             # Buscar PDFs en knowledge_base/ y también en la raíz del proyecto
             all_docs = []
@@ -295,9 +296,9 @@ def initialize_rag():
                         pdf_path = os.path.join(BASE_PATH, pdf_name)
                         loader = PyPDFLoader(pdf_path)
                         all_docs.extend(loader.load())
-                        log(f"  → {pdf_name} procesado.")
+                        log(f"  > {pdf_name} procesado.")
                     except Exception as e:
-                        log(f"  ✗ Error procesando {pdf_name}: {e}")
+                        log(f"  X Error procesando {pdf_name}: {e}")
 
             if all_docs:
                 log(f"[RAG] Fragmentando {len(all_docs)} páginas...")
@@ -314,7 +315,7 @@ def initialize_rag():
                     embedding=embeddings,
                     persist_directory=CHROMA_DIR
                 )
-                update_status("indexing_knowledge", f"Indexados {len(fragments)} fragmentos ✓", 65)
+                update_status("indexing_knowledge", f"Indexados {len(fragments)} fragmentos OK", 65)
             else:
                 log("[RAG] No se encontraron PDFs. Creando base vacía...")
                 vectorstore = Chroma.from_texts(
@@ -341,11 +342,11 @@ def initialize_rag():
         log("[RAG] Modelo de lenguaje cargado correctamente.")
 
         # ─── SISTEMA LISTO ───
-        update_status("ready", "¡Sistema listo para consultas!", 100)
+        update_status("ready", "Sistema listo para consultas!", 100)
 
     except Exception as e:
         error_msg = str(e)
-        log(f"[ERROR CRÍTICO] {error_msg}")
+        log(f"[ERROR CRITICO] {error_msg}")
         traceback.print_exc()
         update_status("error", f"Error: {error_msg}", 0)
 
@@ -664,10 +665,10 @@ def run_server():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
 
 if __name__ == '__main__':
-    log("═" * 55)
-    log("  OsterwalderAI Architect — Iniciando...")
-    log("  Curso: Sistemas Analíticos (UNI) - 2026-I")
-    log("═" * 55)
+    log("=" * 55)
+    log("  OsterwalderAI Architect -- Iniciando...")
+    log("  Curso: Sistemas Analiticos (UNI) - 2026-I")
+    log("=" * 55)
 
     # Iniciar FastAPI en hilo separado
     server_thread = threading.Thread(target=run_server, daemon=True)

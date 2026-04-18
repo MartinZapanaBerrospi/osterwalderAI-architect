@@ -39,3 +39,10 @@ desktop.ini
 
 # PyInstaller
 *.spec
+
+# PDFs del proyecto (libros de referencia, tesis, formatos)
+Formatos CANVAS MODEL.pdf
+LIBRO DISE*ANDO LA PROPUESTA VALOR.pdf
+LIBRO GENERACION DE MODELOS DE NEGOCIO.pdf
+Negocia*.pdf
+PC 02 GE803U*.pdf
